@@ -81,11 +81,11 @@ class MemoryStore:
         """Full-text search messages."""
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
-                "SELECT role, content, timestamp, session_id, metadata "
-                "FROM messages_fts "
-                "JOIN messages ON messages.id = messages_fts.rowid "
-                "WHERE messages_fts MATCH ? "
-                "ORDER BY rank "
+                "SELECT m.role, m.content, m.timestamp, m.session_id, m.metadata "
+                "FROM messages m "
+                "JOIN messages_fts f ON m.id = f.rowid "
+                "WHERE f.messages_fts MATCH ? "
+                "ORDER BY f.rank "
                 "LIMIT ?",
                 (query, limit)
             ).fetchall()
