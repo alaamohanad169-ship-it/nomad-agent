@@ -63,7 +63,7 @@ class NomadAgent:
 
         for iteration in range(max_iterations):
             # Call model
-            response = await self._call_model(messages, tools)
+            response = await self._call_model(messages, tools, battery)
 
             # Check if response has tool calls
             if "tool_calls" in response:
@@ -179,39 +179,37 @@ class NomadAgent:
 
         return messages
 
-    async def _call_model(self, messages: list[dict], tools: list[dict]) -> dict:
-        """Call the model with messages and tools."""
-        # Find the OpenRouter provider
-        openrouter_key = None
-        for provider_name in ["gemini", "llama"]:
-            # Check env
-            import os
-            key = (os.getenv("OPENROUTER_API_KEY") or "").strip()
-            if key:
-                openrouter_key = key
-                break
+    async def _call_model(self, messages: list[dict], tools: list[dict], battery=None) -> dict:
+        """Call the model via the ModelRouter, falling back to offline response."""
+        from nomad.models.router import ModelRouter
 
-        if not openrouter_key:
-            return {"content": "No API key configured. Set OPENROUTER_API_KEY."}
+        router = ModelRouter(cache=self.cache)
 
-        model = "nousresearch/hermes-3-llama-3.1-405b:free"
-        url = "https://openrouter.ai/api/v1/chat/completions"
+        # If no providers configured, return offline response (no tool calling)
+        if not router.providers:
+            last_msg = messages[-1]["content"] if messages else ""
+            return {"content": self.offline.get_offline_response(last_msg)}
+
+        # Select provider based on task and battery
+        mode = battery.mode if battery else BatteryMode.FULL
+        provider_name = router._select_provider("chat", mode, preferred=None)
+        provider = router.providers[provider_name]
 
         payload = {
-            "model": model,
+            "model": provider["model"],
             "messages": messages,
             "max_tokens": 1024,
         }
         if tools:
             payload["tools"] = tools
 
-        # Retry on rate limits
+        # Call with retry on rate limits
         for attempt in range(3):
             async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
-                    url,
+                    f"{provider['base_url']}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {openrouter_key}",
+                        "Authorization": f"Bearer {provider['key']}",
                         "Content-Type": "application/json",
                     },
                     json=payload,
