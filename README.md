@@ -1,81 +1,114 @@
-# 🏕️ Nomad
+# Nomad — Mobile-First AI Agent OS
 
-**Mobile-first AI agent OS** — battery-aware, offline-first, privacy-sovereign.
+Battery-aware, offline-first, privacy-sovereign AI agent built for Termux/Android.
 
-## What is Nomad?
+Nomad runs a full agent stack on your phone — tools, memory, offline mode, battery throttling — without depending on cloud services. When you're offline, it falls back to cached responses and local knowledge. When you're online, it routes through free-tier model providers.
 
-Nomad is an AI agent designed from the ground up for mobile devices. While other agents assume desktop/server resources, Nomad treats phone constraints as first-class design requirements.
+## Install
 
-### Core Principles
-
-1. **Battery-aware** — Throttles itself based on charge level. Deep thinking when charging, lightweight on battery.
-2. **Offline-first** — Core works without internet. Caches responses, uses local memory.
-3. **Privacy-sovereign** — All data stays on device. No cloud accounts required.
-4. **Resource-conscious** — Designed for 4GB RAM, limited storage.
-5. **Context-aware** — Knows battery, connectivity, time. Adapts behavior accordingly.
+```bash
+git clone https://github.com/alaamohanad169-ship-it/nomad-agent.git
+cd nomad-agent
+pip install -e .
+```
 
 ## Quick Start
 
 ```bash
-# Install
-pip install -e .
+# Run in offline mode (no API key needed)
+nomad chat
 
-# Setup API keys
-nomad setup
-
-# Chat
+# Or configure an API key for full model access
+export OPENROUTER_API_KEY="your-key"
 nomad chat
 ```
 
-## Battery Modes
+## Features
 
-| Battery | Mode | Max Tokens | Behavior |
-|---------|------|------------|----------|
-| > 50% | Full | 4096 | All features, detailed responses |
-| 20-50% | Balanced | 1024 | Normal mode, reduced reasoning |
-| 10-20% | Low Power | 256 | Minimal tools, short responses |
-| < 10% | Critical | 128 | Essential only, save power |
+| Feature | Status |
+|---------|--------|
+| Battery-aware agent loop | ✅ Throttles iterations in low power |
+| Offline mode | ✅ Cached responses + local knowledge |
+| Tool system | ✅ 7 tools: terminal, file ops, web, code exec |
+| SQLite memory | ✅ FTS5 search across conversations |
+| Response cache | ✅ Reuses recent responses |
+| Free-tier model router | ✅ OpenRouter, DeepSeek, HuggingFace |
+| Rich CLI | ✅ Interactive chat, stats, tool listing |
 
-## Model Providers
+## Tools
 
-Nomad routes to the best free-tier model:
+| Tool | Risk | Description |
+|------|------|-------------|
+| `terminal` | dangerous | Run shell commands |
+| `read_file` | safe | Read files with line numbers |
+| `write_file` | moderate | Create/overwrite files |
+| `search_files` | safe | Regex search across files |
+| `web_search` | safe | DuckDuckGo search |
+| `web_extract` | safe | Extract text from URLs |
+| `execute_code` | dangerous | Run Python code |
 
-- **DeepSeek** — Best for code tasks
-- **Gemini Flash** — Fast, good for chat
-- **HuggingFace** — Open models (coming soon)
+## Offline Mode
 
-Set API keys:
-```bash
-export DEEPSEEK_API_KEY="your-key"
-export OPENROUTER_API_KEY="your-key"
+When no API key is configured, Nomad enters offline mode:
+
+- **Cached responses** — stores recent LLM responses for reuse
+- **Knowledge base** — SQLite FTS5 index of conversation history
+- **Local tools** — terminal, file ops, and code execution work without internet
+- **Graceful fallback** — tells you what it can do offline
+
+## Battery Awareness
+
+Nomad reads your device's battery level and adjusts behavior:
+
+- **FULL (100-50%)** — 10 tool iterations, full model selection
+- **BALANCED (50-20%)** — 10 iterations, fastest models preferred
+- **LOW (20-5%)** — 3 iterations, minimal API calls
+- **CRITICAL (<5%)** — offline mode only
+
+## Configuration
+
+Config at `~/.nomad/config.toml`:
+
+```toml
+[agent]
+max_iterations = 10
+enable_tools = true
+
+[model]
+default_provider = "openrouter"
+
+[offline]
+enabled = true
+cache_size = 1000
 ```
-
-## Memory
-
-All data stored locally in `~/.nomad/`:
-- `memory.db` — Conversations and facts
-- `cache.db` — Response cache for offline use
-- `config.json` — Your settings
 
 ## Architecture
 
 ```
 nomad/
-├── core/           # Agent loop, context, battery awareness
-├── memory/         # SQLite memory with FTS5 search
-├── models/         # Free-tier model router + cache
-├── tools/          # Tool system (coming soon)
-├── ui/             # Terminal interface
-└── config.py       # Configuration
+├── core/
+│   ├── agent.py       # Main agent loop + tool calling
+│   ├── context.py     # Battery, connectivity, time awareness
+│   └── offline.py     # Offline mode + knowledge base
+├── models/
+│   ├── router.py      # Free-tier model selection
+│   └── cache.py       # Response cache
+├── memory/
+│   └── store.py       # SQLite + FTS5 memory
+├── tools/
+│   ├── registry.py    # Tool registration + dispatch
+│   └── builtins/      # terminal, file, web, code_exec
+├── main.py            # CLI entry point
+└── config.py          # Configuration
 ```
 
-## Why Nomad?
+## Philosophy
 
-Every other AI agent assumes you have a server. Nomad assumes you have a phone.
-
-- **Hermes** — Great agent, but designed for desktop. Runs on mobile via Termux, but doesn't adapt to mobile constraints.
-- **ChatGPT/Claude** — Cloud-only. No sovereignty. Data leaves your device.
-- **Nomad** — Built for mobile from day one. Battery-aware. Offline-capable. Your data stays yours.
+- **Battery-first** — battery level drives iteration budget, model selection, and tool limits
+- **Offline-first** — works without internet, caches everything
+- **Privacy-sovereign** — all data stays on-device, no telemetry
+- **Free-tier** — uses only free model APIs (OpenRouter, DeepSeek, HuggingFace)
+- **Minimal footprint** — single SQLite DB, no heavy dependencies
 
 ## License
 
